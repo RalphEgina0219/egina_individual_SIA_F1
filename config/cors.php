@@ -6,6 +6,7 @@ return [
     'allowed_origins' => [
         'http://localhost:5173',
         'http://ec2-16-178-34-93.ap-southeast-2.compute.amazonaws.com:5173',
+        'http://16.178.34.93:5173',
         'http://localhost:5174',
         'http://127.0.0.1:8000',
         'http://localhost:8000'
