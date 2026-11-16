@@ -8,8 +8,8 @@ services:
     environment:
       APP_NAME: Sales Inventory System
       APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost:8000
+      APP_DEBUG: "${APP_DEBUG:-true}"
+      APP_URL: http://${PUBLIC_HOST:-localhost}:8000
       DB_CONNECTION: mysql
       DB_HOST: db
       DB_PORT: 3306
@@ -35,7 +35,9 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      # 127.0.0.1 (TCP) so the check only passes once the real server is up,
+      # not the temporary socket-only server used during first-time init.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-proot_password"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -44,7 +46,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://localhost:8000/api
+        VITE_API_URL: http://${PUBLIC_HOST:-localhost}:8000/api
     ports:
       - "5173:80"
     depends_on:
