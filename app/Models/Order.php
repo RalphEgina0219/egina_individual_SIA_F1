@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
@@ -12,6 +13,7 @@ class Order extends Model
     protected $fillable = [
         'customer_id',
         'user_id',
+        'branch_id',
         'order_date',
         'total_amount',
         'payment_method',
@@ -37,6 +39,11 @@ class Order extends Model
                 $order->order_date = now();
             }
         });
+
+        static::created(function ($order) {
+            $order->transaction_number = sprintf('TXN-%s-%06d', $order->order_date->format('Ymd'), $order->id);
+            $order->saveQuietly();
+        });
     }
 
     public function customer()
@@ -49,8 +56,18 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
     public function orderItems()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function loyaltyTransactions(): HasMany
+    {
+        return $this->hasMany(LoyaltyTransaction::class);
     }
 }

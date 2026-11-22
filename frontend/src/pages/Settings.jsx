@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { userService } from '../services/api';
+import { apiError } from '../utils/helpers';
 import {
 	Box,
 	Paper,
@@ -50,12 +52,12 @@ const Settings = () => {
 
 	// General Settings
 	const [generalSettings, setGeneralSettings] = useState({
-		companyName: 'Sales & Inventory System',
-		companyEmail: 'info@sales-inventory.com',
-		companyPhone: '+962 7 9999 9999',
-		companyAddress: 'Amman, Jordan',
-		currency: 'USD',
-		timezone: 'Asia/Amman',
+		companyName: 'ShopLink Supermarket Corporation',
+		companyEmail: '',
+		companyPhone: '',
+		companyAddress: 'Calapan City, Oriental Mindoro, Philippines',
+		currency: 'PHP',
+		timezone: 'Asia/Manila',
 	});
 
 	// Security Settings
@@ -86,13 +88,25 @@ const Settings = () => {
 		showAnimations: true,
 	});
 
-	// Mock users data
-	const [users, setUsers] = useState([
-		{ id: 1, name: 'Admin User', email: 'admin@example.com', role: 'Manager', status: 'active' },
-		{ id: 2, name: 'Sales User', email: 'sales@example.com', role: 'Sales', status: 'active' },
-		{ id: 3, name: 'Warehouse User', email: 'warehouse@example.com', role: 'Warehouse', status: 'inactive' },
-		{ id: 4, name: 'John Doe', email: 'john@example.com', role: 'Sales', status: 'active' },
-	]);
+	// Staff users (loaded from /api/users)
+	const [users, setUsers] = useState([]);
+	const [usersLoading, setUsersLoading] = useState(true);
+
+	const loadUsers = useCallback(async () => {
+		setUsersLoading(true);
+		try {
+			const res = await userService.getAll({ per_page: 100 });
+			setUsers((res.data?.data || []).map((u) => ({ ...u, status: u.is_active ? 'active' : 'inactive' })));
+		} catch (error) {
+			setSnackbar({ open: true, message: apiError(error, 'Failed to load users').message, severity: 'error' });
+		} finally {
+			setUsersLoading(false);
+		}
+	}, []);
+
+	useEffect(() => {
+		loadUsers();
+	}, [loadUsers]);
 
 	const [userForm, setUserForm] = useState({
 		name: '',
@@ -181,55 +195,58 @@ const Settings = () => {
 		setUserDialog(true);
 	};
 
-	const handleSaveUser = () => {
-		if (currentUser) {
-			// Update existing user
-			setUsers(users.map(u =>
-				u.id === currentUser.id
-					? { ...u, ...userForm, password: undefined }
-					: u
-			));
-		} else {
-			// Add new user
-			const newUser = {
-				id: users.length + 1,
+	const handleSaveUser = async () => {
+		try {
+			const payload = {
 				name: userForm.name,
 				email: userForm.email,
 				role: userForm.role,
-				status: 'active',
 			};
-			setUsers([...users, newUser]);
-		}
-		setUserDialog(false);
-		setSnackbar({
-			open: true,
-			message: `User ${currentUser ? 'updated' : 'added'} successfully`,
-			severity: 'success'
-		});
-	};
-
-	const handleDeleteUser = (id) => {
-		if (window.confirm('Are you sure you want to delete this user?')) {
-			setUsers(users.filter(user => user.id !== id));
-			setSnackbar({
-				open: true,
-				message: 'User deleted successfully',
-				severity: 'success'
-			});
+			if (userForm.password) {
+				payload.password = userForm.password;
+				payload.password_confirmation = userForm.confirmPassword;
+			}
+			const res = currentUser
+				? await userService.update(currentUser.id, payload)
+				: await userService.create(payload);
+			setUserDialog(false);
+			setSnackbar({ open: true, message: res.message, severity: 'success' });
+			loadUsers();
+		} catch (error) {
+			const err = apiError(error, 'Failed to save user');
+			setSnackbar({ open: true, message: Object.values(err.fieldErrors)[0] || err.message, severity: 'error' });
 		}
 	};
 
-	const handleToggleUserStatus = (id) => {
-		setUsers(users.map(user =>
-			user.id === id
-				? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
-				: user
-		));
+	const handleDeleteUser = async (id) => {
+		if (window.confirm('Deactivate this user? Their sign-in tokens are revoked; records they created are kept.')) {
+			try {
+				const res = await userService.deactivate(id);
+				setSnackbar({ open: true, message: res.message, severity: 'success' });
+				loadUsers();
+			} catch (error) {
+				setSnackbar({ open: true, message: apiError(error).message, severity: 'error' });
+			}
+		}
+	};
+
+	const handleToggleUserStatus = async (id) => {
+		const user = users.find((u) => u.id === id);
+		try {
+			const res = await userService.update(id, { is_active: !user.is_active });
+			setSnackbar({ open: true, message: res.message, severity: 'success' });
+			loadUsers();
+		} catch (error) {
+			setSnackbar({ open: true, message: apiError(error).message, severity: 'error' });
+		}
 	};
 
 	const getRoleColor = (role) => {
 		switch (role) {
+			case 'Admin': return 'error';
 			case 'Manager': return 'error';
+			case 'Customer Service': return 'success';
+			case 'Marketing': return 'secondary';
 			case 'Sales': return 'primary';
 			case 'Warehouse': return 'warning';
 			default: return 'default';
@@ -323,6 +340,7 @@ const Settings = () => {
 									name="currency"
 									onChange={handleGeneralChange}
 								>
+									<MenuItem value="PHP">Philippine Peso (₱)</MenuItem>
 									<MenuItem value="USD">US Dollar ($)</MenuItem>
 									<MenuItem value="EUR">Euro (€)</MenuItem>
 									<MenuItem value="GBP">British Pound (£)</MenuItem>
@@ -339,6 +357,7 @@ const Settings = () => {
 									name="timezone"
 									onChange={handleGeneralChange}
 								>
+									<MenuItem value="Asia/Manila">Asia/Manila (Philippines)</MenuItem>
 									<MenuItem value="Asia/Amman">Asia/Amman (Jordan)</MenuItem>
 									<MenuItem value="UTC">UTC</MenuItem>
 									<MenuItem value="America/New_York">America/New_York</MenuItem>
@@ -673,6 +692,7 @@ const Settings = () => {
 					</Box>
 
 					<List>
+						{usersLoading && <Typography color="textSecondary">Loading users...</Typography>}
 						{users.map((user) => (
 							<ListItem key={user.id} divider>
 								<ListItemText
@@ -765,7 +785,10 @@ const Settings = () => {
 									name="role"
 									onChange={handleUserFormChange}
 								>
+									<MenuItem value="Admin">Admin</MenuItem>
 									<MenuItem value="Manager">Manager</MenuItem>
+									<MenuItem value="Customer Service">Customer Service Staff</MenuItem>
+									<MenuItem value="Marketing">Marketing Staff</MenuItem>
 									<MenuItem value="Sales">Sales Staff</MenuItem>
 									<MenuItem value="Warehouse">Warehouse Staff</MenuItem>
 								</Select>

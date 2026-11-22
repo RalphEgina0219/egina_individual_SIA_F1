@@ -8,15 +8,25 @@ import {
   Box,
   Alert,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Link,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/api';
 
 const Login = () => {
   const [email, setEmail] = useState('admin@example.com');
   const [password, setPassword] = useState('password123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -35,6 +45,18 @@ const Login = () => {
     }
 
     setLoading(false);
+  };
+
+  const handleForgot = async () => {
+    setForgotLoading(true);
+    try {
+      const res = await authService.forgotPassword(forgotEmail);
+      setForgotMessage(res.message);
+    } catch (err) {
+      setForgotMessage(err.response?.data?.message || 'Unable to send reset link. Try again later.');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   return (
@@ -56,7 +78,7 @@ const Login = () => {
           }}
         >
           <Typography variant="h4" align="center" gutterBottom sx={{ mb: 3, color: '#1a237e' }}>
-            Sales & Inventory System
+            ShopLink Supermarket
           </Typography>
 
           <Typography variant="h5" align="center" gutterBottom sx={{ mb: 3 }}>
@@ -103,16 +125,49 @@ const Login = () => {
               {loading ? <CircularProgress size={24} /> : 'Sign In'}
             </Button>
 
+            <Box sx={{ textAlign: 'center', mb: 2 }}>
+              <Link component="button" type="button" variant="body2" onClick={() => setForgotOpen(true)}>
+                Forgot password?
+              </Link>
+            </Box>
+
             <Typography variant="body2" align="center" color="textSecondary">
-              Demo Credentials:
+              Demo Credentials (password123):
             </Typography>
             <Typography variant="body2" align="center" color="textSecondary" sx={{ mt: 1 }}>
-              Admin: admin@example.com / password123
+              Manager: admin@example.com · Sales: sales@example.com
             </Typography>
             <Typography variant="body2" align="center" color="textSecondary">
-              Sales: sales@example.com / password123
+              Customer Service: customerservice@example.com · Marketing: marketing@example.com
             </Typography>
           </form>
+
+          <Dialog open={forgotOpen} onClose={() => setForgotOpen(false)} maxWidth="xs" fullWidth>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogContent>
+              {forgotMessage ? (
+                <Alert severity="success">{forgotMessage}</Alert>
+              ) : (
+                <TextField
+                  fullWidth
+                  autoFocus
+                  margin="dense"
+                  label="Staff e-mail address"
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                />
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => { setForgotOpen(false); setForgotMessage(''); }}>Close</Button>
+              {!forgotMessage && (
+                <Button variant="contained" onClick={handleForgot} disabled={!forgotEmail || forgotLoading}>
+                  Send Reset Link
+                </Button>
+              )}
+            </DialogActions>
+          </Dialog>
         </Paper>
       </Box>
     </Container>

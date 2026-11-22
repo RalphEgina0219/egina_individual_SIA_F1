@@ -57,14 +57,98 @@ export const authService = {
   },
 
   isAuthenticated: () => Boolean(localStorage.getItem('access_token')),
+
+  storeUser: (user) => localStorage.setItem('user', JSON.stringify(user)),
+
+
+  me: () => api.get('/me').then((res) => res.data),
+
+  forgotPassword: (email) => api.post('/forgot-password', { email }).then((res) => res.data),
+
+  resetPassword: (data) => api.post('/reset-password', data).then((res) => res.data),
 };
 
 export const customerService = {
   getAll: (params) => api.get('/customers', { params }).then((res) => res.data),
+  lookup: (q) => api.get('/customers/lookup', { params: { q } }).then((res) => res.data),
+  checkDuplicates: (data) => api.post('/customers/check-duplicates', data).then((res) => res.data),
   getById: (id) => api.get(`/customers/${id}`).then((res) => res.data),
   create: (data) => api.post('/customers', data).then((res) => res.data),
   update: (id, data) => api.put(`/customers/${id}`, data).then((res) => res.data),
   delete: (id) => api.delete(`/customers/${id}`).then((res) => res.data),
+  verify: (id, data) => api.post(`/customers/${id}/verify`, data).then((res) => res.data),
+  activate: (id) => api.post(`/customers/${id}/activate`).then((res) => res.data),
+  changeStatus: (id, data) => api.post(`/customers/${id}/status`, data).then((res) => res.data),
+  accountLogs: (id, params) => api.get(`/customers/${id}/account-logs`, { params }).then((res) => res.data),
+  notifications: (id, params) => api.get(`/customers/${id}/notifications`, { params }).then((res) => res.data),
+  purchases: (id, params) => api.get(`/customers/${id}/purchases`, { params }).then((res) => res.data),
+  rewards: (id) => api.get(`/customers/${id}/rewards`).then((res) => res.data),
+};
+
+export const customerManagementService = {
+  options: () => api.get('/customer-management/options').then((res) => res.data),
+  dashboard: (params) => api.get('/customer-management/dashboard', { params }).then((res) => res.data),
+  reports: (params) => api.get('/customer-management/reports', { params }).then((res) => res.data),
+  announce: (data) => api.post('/customer-management/announcements', data).then((res) => res.data),
+};
+
+export const loyaltyService = {
+  getSettings: () => api.get('/loyalty/settings').then((res) => res.data),
+  updateSettings: (data) => api.put('/loyalty/settings', data).then((res) => res.data),
+  updateLevel: (id, data) => api.put(`/loyalty/levels/${id}`, data).then((res) => res.data),
+  calculate: (params) => api.get('/loyalty/calculate', { params }).then((res) => res.data),
+  members: (params) => api.get('/loyalty/members', { params }).then((res) => res.data),
+  transactions: (params) => api.get('/loyalty/transactions', { params }).then((res) => res.data),
+  syncOrder: (orderId) => api.post(`/loyalty/orders/${orderId}/sync`).then((res) => res.data),
+  runExpiry: () => api.post('/loyalty/expire').then((res) => res.data),
+  customer: (id, params) => api.get(`/customers/${id}/loyalty`, { params }).then((res) => res.data),
+  enroll: (id) => api.post(`/customers/${id}/loyalty/enroll`).then((res) => res.data),
+  setLevel: (id, data) => api.post(`/customers/${id}/loyalty/level`, data).then((res) => res.data),
+  adjust: (id, data) => api.post(`/customers/${id}/loyalty/adjust`, data).then((res) => res.data),
+};
+
+export const purchaseHistoryService = {
+  getAll: (params) => api.get('/purchase-history', { params }).then((res) => res.data),
+  verify: (orderId) => api.get(`/purchase-history/${orderId}/verify`).then((res) => res.data),
+  associate: (orderId, data) =>
+    api.post(`/purchase-history/${orderId}/associate-customer`, data).then((res) => res.data),
+};
+
+export const feedbackService = {
+  getAll: (params) => api.get('/feedback', { params }).then((res) => res.data),
+  getById: (id) => api.get(`/feedback/${id}`).then((res) => res.data),
+  create: (data) => api.post('/feedback', data).then((res) => res.data),
+  update: (id, data) => api.put(`/feedback/${id}`, data).then((res) => res.data),
+  assign: (id, data) => api.post(`/feedback/${id}/assign`, data).then((res) => res.data),
+  respond: (id, data) => api.post(`/feedback/${id}/responses`, data).then((res) => res.data),
+  changeStatus: (id, data) => api.post(`/feedback/${id}/status`, data).then((res) => res.data),
+};
+
+export const rewardService = {
+  getAll: (params) => api.get('/rewards', { params }).then((res) => res.data),
+  create: (data) => api.post('/rewards', data).then((res) => res.data),
+  update: (id, data) => api.put(`/rewards/${id}`, data).then((res) => res.data),
+  delete: (id) => api.delete(`/rewards/${id}`).then((res) => res.data),
+};
+
+export const redemptionService = {
+  getAll: (params) => api.get('/redemptions', { params }).then((res) => res.data),
+  check: (data) => api.post('/redemptions/check', data).then((res) => res.data),
+  create: (data) => api.post('/redemptions', data).then((res) => res.data),
+  cancel: (id, data) => api.post(`/redemptions/${id}/cancel`, data).then((res) => res.data),
+};
+
+export const userService = {
+  getAll: (params) => api.get('/users', { params }).then((res) => res.data),
+  create: (data) => api.post('/users', data).then((res) => res.data),
+  update: (id, data) => api.put(`/users/${id}`, data).then((res) => res.data),
+  deactivate: (id) => api.delete(`/users/${id}`).then((res) => res.data),
+};
+
+export const branchService = {
+  getAll: (params) => api.get('/branches', { params }).then((res) => res.data),
+  create: (data) => api.post('/branches', data).then((res) => res.data),
+  update: (id, data) => api.put(`/branches/${id}`, data).then((res) => res.data),
 };
 
 export const productService = {

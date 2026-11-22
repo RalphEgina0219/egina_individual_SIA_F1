@@ -1,4 +1,8 @@
-# 📦 **Sales and Inventory Management System**
+# 🛒 **ShopLink Supermarket Management System**
+
+Sales, inventory and **Customer Management** for ShopLink Supermarket Corporation (Calapan City, Oriental Mindoro, Philippines).
+
+> Customer Management Module reference (AS-IS process mapping, API endpoints, permissions, notification setup, limitations): **[docs/CUSTOMER_MANAGEMENT.md](docs/CUSTOMER_MANAGEMENT.md)**
 
 ![Laravel](https://img.shields.io/badge/Laravel-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
@@ -31,9 +35,9 @@ A comprehensive **Sales and Inventory Management System** built with Laravel 12 
 ## ✨ **Features**
 
 ### 🔐 **Authentication & Security**
-- Role-based access control (Manager, Sales, Warehouse)
-- Secure password hashing
-- Session management
+- Permission-based access control enforced on the API (Admin, Manager, Customer Service, Marketing, Sales, Warehouse)
+- Secure password hashing, staff password reset by e-mail
+- Staff accounts are created by Admin/Manager only (no public sign-up)
 
 ### 📦 **Inventory Management**
 - Real-time stock tracking across multiple warehouses
@@ -50,10 +54,12 @@ A comprehensive **Sales and Inventory Management System** built with Laravel 12 
 - Order cancellation with stock restoration
 
 ### 👥 **Customer Management**
-- Customer profile management
-- Order history tracking
-- Customer segmentation
-- Contact information management
+- Customer registration with duplicate detection, Customer ID and Membership Number generation, identity verification and activation
+- Loyalty membership (Regular, Registered, Loyalty Member, Gold Member, VIP), configurable points earning, points ledger, authorized adjustments, upgrades and optional expiry
+- Purchase history from real orders, transaction verification, walk-in purchase association
+- Feedback and complaint recording from all channels, categorization, department assignment, resolution tracking
+- Reward catalogue and redemption with server-side points verification
+- Account maintenance with audit logs, customer notifications, dashboard and reports with real data
 
 ### 📊 **Reporting & Analytics**
 - Sales performance dashboards
@@ -194,23 +200,32 @@ running the migrations.
 ## 🗄️ **Database Setup**
 
 ### **Database Schema**
-The system uses 7 main tables:
+Sales & inventory tables:
 1. **users** - System users and authentication
-2. **customers** - Customer information
+2. **customers** - Customer accounts (Customer ID, membership number, status, preferences)
 3. **products** - Product catalog
 4. **warehouses** - Storage locations
 5. **inventory** - Stock quantities per warehouse
-6. **orders** - Sales transactions
+6. **orders** - Sales transactions (transaction number, branch, optional customer)
 7. **order_items** - Order line items
 
-### **Sample Data**
-Default users created by seeders:
+Customer Management tables: **branches**, **membership_levels**, **customer_memberships**, **loyalty_settings**, **loyalty_transactions**, **rewards**, **reward_redemptions**, **customer_feedback**, **complaint_assignments**, **feedback_responses**, **customer_account_logs**, **customer_notifications** (see [docs/CUSTOMER_MANAGEMENT.md](docs/CUSTOMER_MANAGEMENT.md)).
 
-| Email                  | Password    | Role       | Access                           |
-|------------------------|-------------|------------|----------------------------------|
-| admin@example.com      | password123 | Manager    | Full Access                      |
-| sales@example.com      | password123 | Sales      | Sales & Customer Management      |
-| warehouse@example.com  | password123 | Warehouse  | Inventory Management             |
+Upgrade an existing database with `php artisan migrate` - existing customers receive Customer IDs, membership numbers and an Active status; existing orders receive transaction numbers.
+
+### **Sample Data**
+Default users created by `php artisan db:seed` (all passwords `password123`):
+
+| Email                          | Role             | Access                                        |
+|--------------------------------|------------------|-----------------------------------------------|
+| admin@example.com              | Manager          | Full access                                   |
+| sysadmin@example.com           | Admin            | Full access                                   |
+| customerservice@example.com    | Customer Service | Registration, verification, feedback, redemptions |
+| marketing@example.com          | Marketing        | Customer viewing, segmentation, reports       |
+| sales@example.com              | Sales            | Orders, products, customer lookup             |
+| warehouse@example.com          | Warehouse        | Inventory and warehouses                      |
+
+Seeders also create sample branches, grocery products, four sample customers and a sample rewards catalogue. No orders, points or feedback are seeded. **Loyalty earning starts disabled** - set the purchase amount per point in *Loyalty Membership → Program Rules & Levels*.
 
 
 ## 📡 **API Documentation**
@@ -230,13 +245,15 @@ Content-Type: application/json
 
 | Method | Endpoint                 | Description          | Required Role          |
 |--------|--------------------------|----------------------|------------------------|
-| GET    | `/api/products`          | Get all products     | All                    |
-| POST   | `/api/products`          | Create new product   | Manager                |
-| GET    | `/api/orders`            | Get all orders       | Sales, Manager         |
-| POST   | `/api/orders`            | Create new order     | Sales, Manager         |
-| PUT    | `/api/orders/{id}`       | Update order status  | Sales, Manager         |
-| GET    | `/api/inventory`         | Get inventory        | Warehouse, Manager     |
-| POST   | `/api/inventory/transfer`| Transfer stock       | Warehouse, Manager     |
+| GET    | `/api/products`          | Get all products     | Admin, Manager, Sales, Warehouse |
+| POST   | `/api/products`          | Create new product   | Admin, Manager, Sales, Warehouse |
+| GET    | `/api/orders`            | Get all orders       | Admin, Manager, Sales  |
+| POST   | `/api/orders`            | Create new order (`customer_id` / `customer_code` optional, `branch_id`) | Admin, Manager, Sales |
+| PUT    | `/api/orders/{id}`       | Update order status (Delivered earns points, Cancelled reverses) | Admin, Manager, Sales |
+| GET    | `/api/inventory`         | Get inventory        | Admin, Manager, Warehouse, Sales |
+| POST   | `/api/inventory/transfer`| Transfer stock       | Admin, Manager, Warehouse |
+
+The role → permission map is in `app/Support/Permissions.php`. Customer Management endpoints are listed in [docs/CUSTOMER_MANAGEMENT.md](docs/CUSTOMER_MANAGEMENT.md).
 
 
 ### **Postman Collection**
@@ -271,21 +288,26 @@ sales-inventory-system/
 
 ## 👥 **User Roles**
 
-### **1. Manager**
-- Full system access
-- User management
-- Report generation
-- System configuration
-- Oversee all operations
+### **1. Admin / Manager**
+- Full system access, user and permission management
+- Loyalty rules, membership levels, rewards catalogue, points adjustments
+- Complaint assignment and monitoring, customer reports
 
-### **2. Sales Staff**
-- Create and manage customer profiles
-- Process sales orders
+### **2. Customer Service Staff**
+- Customer registration, verification, activation and account updates
+- Purchase history and loyalty balance viewing
+- Feedback recording, complaint tracking, reward redemption processing
+
+### **3. Marketing Staff**
+- Customer viewing (without sensitive personal details), membership monitoring
+- Customer segmentation, activity reports, promotional announcements
+
+### **4. Sales Staff**
+- Process sales orders, customer lookup and selection during transactions
+- Purchases of loyalty members earn points when completed
 - View product availability
-- Generate invoices
-- Track order history
 
-### **3. Warehouse Staff**
+### **5. Warehouse Staff**
 - Manage inventory levels
 - Update stock quantities
 - Handle stock transfers

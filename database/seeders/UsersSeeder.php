@@ -31,6 +31,27 @@ class UsersSeeder extends Seeder
                 'password' => Hash::make('password123'),
                 'role' => 'Warehouse',
                 'phone' => '0503333333'
+            ],
+            [
+                'name' => 'System Administrator',
+                'email' => 'sysadmin@example.com',
+                'password' => Hash::make('password123'),
+                'role' => 'Admin',
+                'phone' => '09170000001'
+            ],
+            [
+                'name' => 'Customer Service User',
+                'email' => 'customerservice@example.com',
+                'password' => Hash::make('password123'),
+                'role' => 'Customer Service',
+                'phone' => '09170000002'
+            ],
+            [
+                'name' => 'Marketing User',
+                'email' => 'marketing@example.com',
+                'password' => Hash::make('password123'),
+                'role' => 'Marketing',
+                'phone' => '09170000003'
             ]
         ];
 

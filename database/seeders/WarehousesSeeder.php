@@ -12,11 +12,11 @@ class WarehousesSeeder extends Seeder
         $warehouses = [
             [
                 'warehouse_name' => 'Main Warehouse',
-                'location' => 'Amman'
+                'location' => 'Calapan City'
             ],
             [
-                'warehouse_name' => 'Aqaba Storage',
-                'location' => 'Aqaba'
+                'warehouse_name' => 'Branch 2 Stockroom',
+                'location' => 'Calapan City'
             ]
         ];
 
