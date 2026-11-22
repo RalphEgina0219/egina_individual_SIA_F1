@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Permissions;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -17,7 +18,8 @@ class User extends Authenticatable
     'email',
     'password',
     'role',
-    'phone'
+    'phone',
+    'is_active'
   ];
 
   protected $hidden = [
@@ -27,7 +29,12 @@ class User extends Authenticatable
 
   protected $casts = [
     'email_verified_at' => 'datetime',
-    'password' => 'hashed'
+    'password' => 'hashed',
+    'is_active' => 'boolean'
+  ];
+
+  protected $attributes = [
+    'is_active' => true,
   ];
 
   public function orders(): HasMany
@@ -49,5 +56,25 @@ class User extends Authenticatable
   public function hasAnyRole(array $roles): bool
   {
     return in_array($this->role, $roles);
+  }
+
+  /**
+   * Check a Customer Management / module permission (see App\Support\Permissions)
+   */
+  public function can($abilities, $arguments = []): bool
+  {
+    if (is_string($abilities) && array_key_exists($abilities, Permissions::MAP)) {
+      return $this->is_active && Permissions::allows($this->role, $abilities);
+    }
+
+    return parent::can($abilities, $arguments);
+  }
+
+  /**
+   * @return string[]
+   */
+  public function permissions(): array
+  {
+    return $this->is_active ? Permissions::forRole($this->role) : [];
   }
 }

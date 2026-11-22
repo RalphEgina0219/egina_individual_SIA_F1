@@ -1,5 +1,6 @@
 services:
   app:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
@@ -24,6 +25,7 @@ services:
         condition: service_healthy
 
   db:
+    restart: unless-stopped
     image: mysql:8.0
     environment:
       MYSQL_DATABASE: sales_db
@@ -43,6 +45,7 @@ services:
       retries: 20
 
   frontend:
+    restart: unless-stopped
     build:
       context: ./frontend
       args:

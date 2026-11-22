@@ -15,6 +15,7 @@ import {
   TableRow,
   Chip,
   IconButton,
+  Button,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -30,6 +31,8 @@ import {
   productService,
   customerService,
 } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { formatCurrency } from '../utils/helpers';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -42,42 +45,35 @@ const Dashboard = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { can } = useAuth();
 
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // Load data in parallel
-      const [products, customers, orders] = await Promise.all([
-        productService.getAll({ per_page: 100 }),
-        customerService.getAll(),
-        orderService.getAll({ per_page: 5 }),
+      // Load only what the user's role may access
+      const empty = Promise.resolve(null);
+      const [products, customers, orders, sales] = await Promise.all([
+        can('products.view') ? productService.getAll({ per_page: 100 }) : empty,
+        can('customers.view') ? customerService.getAll({ per_page: 1 }) : empty,
+        can('orders.view') ? orderService.getAll({ per_page: 5 }) : empty,
+        can('reports.sales') ? orderService.getSalesStats() : empty,
       ]);
 
       // Calculate low stock products manually
-      const lowStock = (products.data?.data || []).filter(
+      const lowStock = (products?.data?.data || []).filter(
         product => product.total_stock <= 10
       );
 
-      // Calculate sales stats from orders
-      const orderStats = (orders.data?.data || []).reduce(
-        (acc, order) => {
-          return {
-            totalOrders: acc.totalOrders + 1,
-            totalRevenue: acc.totalRevenue + (parseFloat(order.total_amount) || 0),
-          };
-        },
-        { totalOrders: 0, totalRevenue: 0 }
-      );
-
       setStats({
-        totalOrders: orderStats.totalOrders,
-        totalRevenue: orderStats.totalRevenue,
-        totalCustomers: customers.data?.total || 0,
-        totalProducts: products.data?.total || 0,
+        totalOrders: orders?.data?.total ?? null,
+        // Revenue for the current month (sales statistics endpoint)
+        totalRevenue: sales ? Number(sales.data?.statistics?.total_revenue || 0) : null,
+        totalCustomers: customers?.data?.total ?? null,
+        totalProducts: products?.data?.total ?? null,
       });
 
       setLowStockProducts(lowStock);
-      setRecentOrders(orders.data?.data || []);
+      setRecentOrders(orders?.data?.data || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       // Set fallback data
@@ -105,7 +101,7 @@ const Dashboard = () => {
               {title}
             </Typography>
             <Typography variant="h4">
-              {title.includes('Revenue') ? `$${Number(value).toFixed(2)}` : value}
+              {value === null ? '-' : title.includes('Revenue') ? formatCurrency(value) : value}
             </Typography>
           </Box>
           <Box sx={{ color }}>
@@ -130,9 +126,16 @@ const Dashboard = () => {
         <Typography variant="h4" sx={{ color: '#1a237e' }}>
           Dashboard
         </Typography>
-        <IconButton onClick={loadDashboardData} color="primary">
-          <Refresh />
-        </IconButton>
+        <Box>
+          {can('customers.dashboard') && (
+            <Button variant="outlined" onClick={() => navigate('/customer-management')} sx={{ mr: 1 }}>
+              Customer Dashboard
+            </Button>
+          )}
+          <IconButton onClick={loadDashboardData} color="primary">
+            <Refresh />
+          </IconButton>
+        </Box>
       </Box>
 
       {/* Using Grid in a way compatible with MUI v5/v6 */}
@@ -155,7 +158,7 @@ const Dashboard = () => {
           color="#3f51b5"
         />
         <StatCard
-          title="Total Revenue"
+          title="Revenue This Month"
           value={stats.totalRevenue}
           icon={<TrendingUp sx={{ fontSize: 40 }} />}
           color="#4caf50"
@@ -250,12 +253,12 @@ const Dashboard = () => {
                     <TableRow
                       key={order.id}
                       hover
-                      onClick={() => navigate(`/orders/${order.id}`)}
+                      onClick={() => navigate('/orders')}
                       sx={{ cursor: 'pointer' }}
                     >
-                      <TableCell>#{order.id}</TableCell>
-                      <TableCell>{order.customer?.full_name}</TableCell>
-                      <TableCell align="right">${order.total_amount}</TableCell>
+                      <TableCell>{order.transaction_number || `#${order.id}`}</TableCell>
+                      <TableCell>{order.customer?.full_name || 'Walk-in'}</TableCell>
+                      <TableCell align="right">{formatCurrency(order.total_amount)}</TableCell>
                       <TableCell>
                         <Chip
                           label={order.order_status}

@@ -44,7 +44,10 @@ import {
   Pending as PendingIcon,
 } from '@mui/icons-material';
 import Grid from '@mui/material/Grid';
-import { orderService, productService, customerService } from '../services/api';
+import { orderService, productService } from '../services/api';
+import CustomerPicker from '../components/common/CustomerPicker';
+import { useOptions } from '../hooks/useOptions';
+import { formatCurrency } from '../utils/helpers';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -61,11 +64,12 @@ const Orders = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [viewDialog, setViewDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const options = useOptions();
   const [products, setProducts] = useState([]);
   const [orderItems, setOrderItems] = useState([{ product_id: '', quantity: 1 }]);
   const [formData, setFormData] = useState({
-    customer_id: '',
+    branch_id: '',
     payment_method: 'Cash',
   });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -74,14 +78,12 @@ const Orders = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [ordersRes, customersRes, productsRes] = await Promise.all([
+      const [ordersRes, productsRes] = await Promise.all([
         orderService.getAll({ per_page: 1000 }),
-        customerService.getAll({ per_page: 1000 }),
         productService.getAll({ per_page: 1000 }),
       ]);
 
       setOrders(ordersRes.data?.data || []);
-      setCustomers(customersRes.data?.data || []);
       setProducts(productsRes.data?.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -99,7 +101,9 @@ const Orders = () => {
   const filteredOrders = orders.filter(order => {
     const matchesSearch =
       order.id.toString().includes(searchTerm) ||
-      order.customer?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      order.transaction_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customer?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customer?.customer_code?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || order.order_status === statusFilter;
 
@@ -113,9 +117,10 @@ const Orders = () => {
   // Handle dialog open for new order
   const handleOpenNewDialog = () => {
     setFormData({
-      customer_id: '',
+      branch_id: '',
       payment_method: 'Cash',
     });
+    setSelectedCustomer(null);
     setOrderItems([{ product_id: '', quantity: 1 }]);
     setOpenDialog(true);
   };
@@ -167,6 +172,8 @@ const Orders = () => {
     try {
       const orderData = {
         ...formData,
+        customer_id: selectedCustomer?.id || null,
+        branch_id: formData.branch_id || null,
         items: validItems.map(item => ({
           product_id: parseInt(item.product_id),
           quantity: parseInt(item.quantity),
@@ -186,8 +193,11 @@ const Orders = () => {
   // Handle update order status
   const handleUpdateStatus = async (orderId, newStatus) => {
     try {
-      await orderService.updateStatus(orderId, newStatus);
-      setSnackbar({ open: true, message: 'Order status updated', severity: 'success' });
+      const res = await orderService.updateStatus(orderId, newStatus);
+      let message = 'Order status updated';
+      if (res.loyalty?.awarded) message += ` - ${res.loyalty.points} loyalty points earned`;
+      else if (res.loyalty?.reversed_points) message += ` - ${res.loyalty.reversed_points} loyalty points reversed`;
+      setSnackbar({ open: true, message, severity: 'success' });
       fetchData();
     } catch (error) {
       const message = error.response?.data?.message || 'Failed to update status';
@@ -284,7 +294,7 @@ const Orders = () => {
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
-                placeholder="Search by ID or customer..."
+                placeholder="Transaction no. or customer..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 InputProps={{
@@ -373,18 +383,28 @@ const Orders = () => {
                   <TableRow key={order.id} hover>
                     <TableCell>
                       <Typography variant="subtitle2" color="primary">
-                        #{order.id}
+                        {order.transaction_number || `#${order.id}`}
                       </Typography>
+                      {order.branch && (
+                        <Typography variant="caption" color="textSecondary">{order.branch.name}</Typography>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">{order.customer?.full_name}</Typography>
+                      {order.customer ? (
+                        <>
+                          <Typography variant="body2">{order.customer.full_name}</Typography>
+                          <Typography variant="caption" color="textSecondary">{order.customer.customer_code}</Typography>
+                        </>
+                      ) : (
+                        <Chip label="Walk-in" size="small" variant="outlined" />
+                      )}
                     </TableCell>
                     <TableCell>
                       {new Date(order.order_date).toLocaleDateString()}
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="subtitle2" color="primary">
-                        ${parseFloat(order.total_amount).toFixed(2)}
+                        {formatCurrency(order.total_amount)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -464,20 +484,30 @@ const Orders = () => {
             <Box sx={{ pt: 2 }}>
               <Grid container spacing={3}>
                 {/* Customer Selection */}
-                <Grid item xs={12}>
-                  <FormControl fullWidth required>
-                    <InputLabel>Customer</InputLabel>
+                <Grid size={{ xs: 12, md: 8 }}>
+                  <CustomerPicker
+                    value={selectedCustomer}
+                    onChange={setSelectedCustomer}
+                    label="Customer (optional)"
+                    helperText={selectedCustomer
+                      ? (selectedCustomer.is_loyalty_member
+                        ? `${selectedCustomer.membership_level} · ${selectedCustomer.points_balance} pts - earns points when the order is Delivered`
+                        : 'Not a loyalty member - purchase is recorded on the customer profile')
+                      : 'Leave empty for a walk-in sale. Search by name, phone or Customer ID.'}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Branch</InputLabel>
                     <Select
-                      value={formData.customer_id}
-                      label="Customer"
-                      name="customer_id"
+                      value={formData.branch_id}
+                      label="Branch"
+                      name="branch_id"
                       onChange={handleInputChange}
                     >
-                      <MenuItem value="">Select Customer</MenuItem>
-                      {customers.map(customer => (
-                        <MenuItem key={customer.id} value={customer.id}>
-                          {customer.full_name} - {customer.phone}
-                        </MenuItem>
+                      <MenuItem value="">Not specified</MenuItem>
+                      {options.branches.map(branch => (
+                        <MenuItem key={branch.id} value={branch.id}>{branch.name}</MenuItem>
                       ))}
                     </Select>
                   </FormControl>
@@ -500,7 +530,7 @@ const Orders = () => {
                               <MenuItem value="">Select Product</MenuItem>
                               {products.map(product => (
                                 <MenuItem key={product.id} value={product.id}>
-                                  {product.product_name} - ${product.unit_price} (Stock: {product.total_stock || 0})
+                                  {product.product_name} - {formatCurrency(product.unit_price)} (Stock: {product.total_stock || 0})
                                 </MenuItem>
                               ))}
                             </Select>
@@ -556,21 +586,21 @@ const Orders = () => {
                       <Typography variant="h6" gutterBottom>Order Summary</Typography>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography>Subtotal:</Typography>
-                        <Typography>${calculateTotal().toFixed(2)}</Typography>
+                        <Typography>{formatCurrency(calculateTotal())}</Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography>Tax (0%):</Typography>
-                        <Typography>$0.00</Typography>
+                        <Typography>{formatCurrency(0)}</Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                         <Typography>Shipping:</Typography>
-                        <Typography>$0.00</Typography>
+                        <Typography>{formatCurrency(0)}</Typography>
                       </Box>
                       <Divider sx={{ my: 1 }} />
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Typography variant="h6">Total:</Typography>
                         <Typography variant="h6" color="primary">
-                          ${calculateTotal().toFixed(2)}
+                          {formatCurrency(calculateTotal())}
                         </Typography>
                       </Box>
                     </CardContent>
@@ -584,7 +614,7 @@ const Orders = () => {
             <Button
               onClick={handleCreateOrder}
               variant="contained"
-              disabled={!formData.customer_id || orderItems.every(item => !item.product_id)}
+              disabled={orderItems.every(item => !item.product_id)}
               sx={{ backgroundColor: '#1a237e' }}
             >
               Create Order
@@ -597,7 +627,7 @@ const Orders = () => {
           {selectedOrder && (
             <>
               <DialogTitle>
-                Order #{selectedOrder.id} Details
+                Order {selectedOrder.transaction_number || `#${selectedOrder.id}`} Details
               </DialogTitle>
               <DialogContent>
                 <Box sx={{ pt: 2 }}>
@@ -651,11 +681,14 @@ const Orders = () => {
                       <Card variant="outlined">
                         <CardContent>
                           <Typography variant="h6" gutterBottom>Customer Information</Typography>
+                          {!selectedOrder.customer && (
+                            <Typography color="textSecondary">Walk-in sale (no customer account)</Typography>
+                          )}
                           {selectedOrder.customer && (
                             <Grid container spacing={2}>
                               <Grid item xs={12}>
                                 <Typography variant="body2" color="textSecondary">Name:</Typography>
-                                <Typography>{selectedOrder.customer.full_name}</Typography>
+                                <Typography>{selectedOrder.customer.full_name} ({selectedOrder.customer.customer_code})</Typography>
                               </Grid>
                               <Grid size={{ xs: 12, md: 6 }}>
                                 <Typography variant="body2" color="textSecondary">Phone:</Typography>
@@ -689,9 +722,9 @@ const Orders = () => {
                               {selectedOrder.order_items?.map((item) => (
                                 <TableRow key={item.id}>
                                   <TableCell>{item.product?.product_name}</TableCell>
-                                  <TableCell align="right">${item.unit_price}</TableCell>
+                                  <TableCell align="right">{formatCurrency(item.unit_price)}</TableCell>
                                   <TableCell align="right">{item.quantity}</TableCell>
-                                  <TableCell align="right">${item.subtotal}</TableCell>
+                                  <TableCell align="right">{formatCurrency(item.subtotal)}</TableCell>
                                 </TableRow>
                               ))}
                               <TableRow>
@@ -700,7 +733,7 @@ const Orders = () => {
                                 </TableCell>
                                 <TableCell align="right">
                                   <Typography variant="subtitle1" color="primary">
-                                    ${selectedOrder.total_amount}
+                                    {formatCurrency(selectedOrder.total_amount)}
                                   </Typography>
                                 </TableCell>
                               </TableRow>

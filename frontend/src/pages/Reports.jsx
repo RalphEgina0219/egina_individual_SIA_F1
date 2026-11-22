@@ -39,9 +39,9 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { Link as RouterLink } from 'react-router-dom';
 import {
 	orderService,
-	customerService,
 	inventoryService,
 } from '../services/api';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
@@ -61,9 +61,11 @@ const Reports = () => {
 	const [topCustomers, setTopCustomers] = useState([]);
 	const [inventorySummary, setInventorySummary] = useState([]);
 	const [salesData, setSalesData] = useState([]);
+	const [salesByCategory, setSalesByCategory] = useState([]);
+	const [inventoryByCategory, setInventoryByCategory] = useState([]);
 
 	// Color palette for charts
-	const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+	const COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
 
 	// Load reports data
 	const loadReportsData = async () => {
@@ -77,29 +79,37 @@ const Reports = () => {
 				end_date: format(dateRange.endDate, 'yyyy-MM-dd'),
 			};
 
-			const [salesResponse, customersResponse, inventoryResponse] = await Promise.all([
+			const [salesResponse, inventoryResponse] = await Promise.all([
 				orderService.getSalesStats(statsParams),
-				customerService.getAll({ per_page: 100 }),
 				inventoryService.getSummary(),
 			]);
 
 			// Process sales data
 			setSalesStats(salesResponse.data?.statistics || {});
 			setTopProducts(salesResponse.data?.top_products || []);
+			setSalesByCategory((salesResponse.data?.sales_by_category || []).map((row) => ({ name: row.name, value: Number(row.value) })));
 
-			// Process customers data (mock top customers for now)
-			const customers = customersResponse.data?.data || [];
-			const mockTopCustomers = customers.slice(0, 5).map((customer) => ({
+			// Top customers by actual spend in the period
+			setTopCustomers((salesResponse.data?.top_customers || []).map((customer) => ({
 				...customer,
-				total_spent: Math.floor(Math.random() * 5000) + 1000,
-			}));
-			setTopCustomers(mockTopCustomers);
+				total_spent: Number(customer.total_spent),
+			})));
 
 			// Process inventory data
 			setInventorySummary(inventoryResponse.data?.low_stock || []);
+			const byCategory = {};
+			(inventoryResponse.data?.summary || []).forEach((row) => {
+				const category = row.product?.category || 'Uncategorized';
+				byCategory[category] = (byCategory[category] || 0) + Number(row.total_quantity || 0);
+			});
+			setInventoryByCategory(Object.entries(byCategory).map(([name, stock]) => ({ name, stock })));
 
-			// Generate mock sales data for chart
-			generateMockSalesData();
+			// Daily sales series from recorded orders
+			setSalesData((salesResponse.data?.daily_sales || []).map((day) => ({
+				date: format(new Date(day.date), 'MMM dd'),
+				sales: Number(day.sales),
+				orders: Number(day.orders),
+			})));
 
 		} catch (err) {
 			console.error('Error loading reports:', err);
@@ -109,24 +119,6 @@ const Reports = () => {
 		}
 	};
 
-	// Generate mock sales data for chart
-	const generateMockSalesData = () => {
-		const days = 30;
-		const data = [];
-
-		for (let i = 0; i < days; i++) {
-			const date = subDays(new Date(), days - i - 1);
-			data.push({
-				date: format(date, 'MMM dd'),
-				sales: Math.floor(Math.random() * 5000) + 1000,
-				orders: Math.floor(Math.random() * 20) + 5,
-				customers: Math.floor(Math.random() * 15) + 3,
-			});
-		}
-
-		setSalesData(data);
-	};
-
 	// Load data on component mount and when date range changes
 	useEffect(() => {
 		loadReportsData();
@@ -134,9 +126,9 @@ const Reports = () => {
 
 	// Format currency
 	const formatCurrency = (amount) => {
-		return new Intl.NumberFormat('en-US', {
+		return new Intl.NumberFormat('en-PH', {
 			style: 'currency',
-			currency: 'USD',
+			currency: 'PHP',
 		}).format(amount);
 	};
 
@@ -304,19 +296,21 @@ const Reports = () => {
 							<Grid item xs={12} md={8}>
 								<Paper sx={{ p: 3, height: 400 }}>
 									<Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-										<Timeline /> Sales Trend (Last 30 Days)
+										<Timeline /> Daily Sales (Selected Period)
 									</Typography>
-									<ResponsiveContainer width="100%" height="90%">
-										<LineChart data={salesData}>
-											<CartesianGrid strokeDasharray="3 3" />
-											<XAxis dataKey="date" />
-											<YAxis />
-											<Tooltip formatter={(value) => [`$${value}`, 'Sales']} />
-											<Legend />
-											<Line type="monotone" dataKey="sales" stroke="#8884d8" strokeWidth={2} dot={{ r: 4 }} />
-											<Line type="monotone" dataKey="orders" stroke="#82ca9d" strokeWidth={2} dot={{ r: 4 }} />
-										</LineChart>
-									</ResponsiveContainer>
+									{salesData.length === 0 ? (
+										<Typography color="textSecondary" align="center" sx={{ py: 8 }}>No sales in the selected period</Typography>
+									) : (
+										<ResponsiveContainer width="100%" height="90%">
+											<LineChart data={salesData}>
+												<CartesianGrid stroke="#e6e6e3" vertical={false} />
+												<XAxis dataKey="date" />
+												<YAxis />
+												<Tooltip formatter={(value) => [formatCurrency(value), 'Sales']} />
+												<Line type="monotone" dataKey="sales" name="Sales" stroke="#2a78d6" strokeWidth={2} dot={false} />
+											</LineChart>
+										</ResponsiveContainer>
+									)}
 								</Paper>
 							</Grid>
 							<Grid item xs={12} md={4}>
@@ -324,31 +318,30 @@ const Reports = () => {
 									<Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 										<PieChart /> Sales by Category
 									</Typography>
-									<ResponsiveContainer width="100%" height="90%">
-										<RePieChart>
-											<Pie
-												data={[
-													{ name: 'Electronics', value: 4000 },
-													{ name: 'Clothing', value: 3000 },
-													{ name: 'Furniture', value: 2000 },
-													{ name: 'Books', value: 1500 },
-													{ name: 'Others', value: 1000 },
-												]}
-												cx="50%"
-												cy="50%"
-												labelLine={false}
-												label={(entry) => `${entry.name}: $${entry.value}`}
-												outerRadius={80}
-												fill="#8884d8"
-												dataKey="value"
-											>
-												{COLORS.map((color, index) => (
-													<Cell key={`cell-${index}`} fill={color} />
-												))}
-											</Pie>
-											<Tooltip formatter={(value) => [`$${value}`, 'Sales']} />
-										</RePieChart>
-									</ResponsiveContainer>
+									{salesByCategory.length === 0 ? (
+										<Typography color="textSecondary" align="center" sx={{ py: 8 }}>No sales in the selected period</Typography>
+									) : (
+										<ResponsiveContainer width="100%" height="90%">
+											<RePieChart>
+												<Pie
+													data={salesByCategory}
+													cx="50%"
+													cy="50%"
+													labelLine={false}
+													outerRadius={80}
+													dataKey="value"
+													stroke="#ffffff"
+													strokeWidth={2}
+												>
+													{salesByCategory.map((entry, index) => (
+														<Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+													))}
+												</Pie>
+												<Tooltip formatter={(value) => [formatCurrency(value), 'Sales']} />
+												<Legend />
+											</RePieChart>
+										</ResponsiveContainer>
+									)}
 								</Paper>
 							</Grid>
 						</Grid>
@@ -473,21 +466,13 @@ const Reports = () => {
 							</Typography>
 							<Box sx={{ height: 400 }}>
 								<ResponsiveContainer width="100%" height="100%">
-									<ReBarChart
-										data={[
-											{ name: 'Electronics', stock: 1500 },
-											{ name: 'Clothing', stock: 3200 },
-											{ name: 'Furniture', stock: 800 },
-											{ name: 'Books', stock: 2000 },
-											{ name: 'Others', stock: 1200 },
-										]}
-									>
+									<ReBarChart data={inventoryByCategory}>
 										<CartesianGrid strokeDasharray="3 3" />
 										<XAxis dataKey="name" />
 										<YAxis />
 										<Tooltip formatter={(value) => [value, 'Units']} />
 										<Legend />
-										<Bar dataKey="stock" fill="#8884d8" name="Current Stock" />
+										<Bar dataKey="stock" fill="#2a78d6" name="Current Stock" radius={[4, 4, 0, 0]} />
 									</ReBarChart>
 								</ResponsiveContainer>
 							</Box>
@@ -507,32 +492,27 @@ const Reports = () => {
 									<TableHead>
 										<TableRow>
 											<TableCell>Customer</TableCell>
+											<TableCell>Customer ID</TableCell>
 											<TableCell>Email</TableCell>
 											<TableCell align="right">Total Orders</TableCell>
 											<TableCell align="right">Total Spent</TableCell>
-											<TableCell>Customer Since</TableCell>
-											<TableCell>Status</TableCell>
 										</TableRow>
 									</TableHead>
 									<TableBody>
+										{topCustomers.length === 0 && (
+											<TableRow>
+												<TableCell colSpan={5} align="center">
+													<Typography color="textSecondary" sx={{ py: 2 }}>No customer purchases in the selected period</Typography>
+												</TableCell>
+											</TableRow>
+										)}
 										{topCustomers.map((customer) => (
 											<TableRow key={customer.id}>
 												<TableCell>{customer.full_name}</TableCell>
-												<TableCell>{customer.email}</TableCell>
-												<TableCell align="right">
-													{Math.floor(Math.random() * 20) + 1}
-												</TableCell>
+												<TableCell>{customer.customer_code}</TableCell>
+												<TableCell>{customer.email || '-'}</TableCell>
+												<TableCell align="right">{customer.total_orders}</TableCell>
 												<TableCell align="right">{formatCurrency(customer.total_spent)}</TableCell>
-												<TableCell>
-													{new Date(customer.registration_date).toLocaleDateString()}
-												</TableCell>
-												<TableCell>
-													<Chip
-														label={customer.total_spent > 5000 ? 'VIP' : 'Regular'}
-														color={customer.total_spent > 5000 ? 'primary' : 'default'}
-														size="small"
-													/>
-												</TableCell>
 											</TableRow>
 										))}
 									</TableBody>
@@ -540,34 +520,12 @@ const Reports = () => {
 							</TableContainer>
 						</Paper>
 
-						{/* Customer Acquisition Chart */}
-						<Paper sx={{ p: 3 }}>
-							<Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-								<Timeline /> Customer Acquisition Trend
-							</Typography>
-							<Box sx={{ height: 400 }}>
-								<ResponsiveContainer width="100%" height="100%">
-									<ReBarChart
-										data={[
-											{ month: 'Jan', new: 65, returning: 40 },
-											{ month: 'Feb', new: 59, returning: 48 },
-											{ month: 'Mar', new: 80, returning: 55 },
-											{ month: 'Apr', new: 81, returning: 60 },
-											{ month: 'May', new: 56, returning: 45 },
-											{ month: 'Jun', new: 55, returning: 50 },
-										]}
-									>
-										<CartesianGrid strokeDasharray="3 3" />
-										<XAxis dataKey="month" />
-										<YAxis />
-										<Tooltip />
-										<Legend />
-										<Bar dataKey="new" fill="#8884d8" name="New Customers" />
-										<Bar dataKey="returning" fill="#82ca9d" name="Returning Customers" />
-									</ReBarChart>
-								</ResponsiveContainer>
-							</Box>
-						</Paper>
+						{/* Customer analytics live in the Customer Management module */}
+						<Alert severity="info">
+							Registration trends, new vs returning customers, segmentation and inactive-customer reports are available in{' '}
+							<RouterLink to="/customer-reports">Customer Reports</RouterLink> and the{' '}
+							<RouterLink to="/customer-management">Customer Dashboard</RouterLink>.
+						</Alert>
 					</>
 				)}
 			</Box>
