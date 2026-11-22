@@ -8,7 +8,7 @@ services:
       - "8000:80"
     environment:
       APP_NAME: Sales Inventory System
-      APP_ENV: local
+      APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-true}"
       APP_URL: http://${PUBLIC_HOST:-localhost}:8000
       DB_CONNECTION: mysql

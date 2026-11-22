@@ -244,7 +244,7 @@ php artisan serve                 # API on http://127.0.0.1:8000
 cd frontend && npm install && npm run dev   # UI on http://localhost:5173
 ```
 
-After the first login as `admin@example.com` / `password123`:
+After the first login as `admin@example.com` (on any shared or public server, change the seeded password immediately):
 1. **Enable earning:** open Loyalty Membership → Program Rules & Levels, set the purchase amount per point, and enable earning.
 2. **Upgrade thresholds (optional):** set lifetime-points thresholds for Gold Member and VIP.
 3. **Branches and rewards:** review the sample branches and the sample rewards catalogue.

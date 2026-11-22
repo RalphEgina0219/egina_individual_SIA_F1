@@ -19,8 +19,8 @@ import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/api';
 
 const Login = () => {
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [forgotOpen, setForgotOpen] = useState(false);
@@ -130,16 +130,6 @@ const Login = () => {
                 Forgot password?
               </Link>
             </Box>
-
-            <Typography variant="body2" align="center" color="textSecondary">
-              Demo Credentials (password123):
-            </Typography>
-            <Typography variant="body2" align="center" color="textSecondary" sx={{ mt: 1 }}>
-              Manager: admin@example.com · Sales: sales@example.com
-            </Typography>
-            <Typography variant="body2" align="center" color="textSecondary">
-              Customer Service: customerservice@example.com · Marketing: marketing@example.com
-            </Typography>
           </form>
 
           <Dialog open={forgotOpen} onClose={() => setForgotOpen(false)} maxWidth="xs" fullWidth>
