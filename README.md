@@ -214,7 +214,9 @@ Customer Management tables: **branches**, **membership_levels**, **customer_memb
 Upgrade an existing database with `php artisan migrate` - existing customers receive Customer IDs, membership numbers and an Active status; existing orders receive transaction numbers.
 
 ### **Sample Data**
-Default users created by `php artisan db:seed` (all passwords `password123`):
+Default users created by `php artisan db:seed` for **local development only**. Their initial password is set in `database/seeders/UsersSeeder.php`.
+
+> ⚠️ **Never leave the seeded accounts on a public server with their default password.** Change every password right after deploying, or create new accounts and deactivate the seeded ones.
 
 | Email                          | Role             | Access                                        |
 |--------------------------------|------------------|-----------------------------------------------|
@@ -237,7 +239,7 @@ Content-Type: application/json
 
 {
   "email": "admin@example.com",
-  "password": "password123"
+  "password": "<your-password>"
 }
 ```
 
