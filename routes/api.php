@@ -16,6 +16,8 @@ use App\Http\Controllers\Api\RedemptionController;
 use App\Http\Controllers\Api\RewardController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WarehouseController;
+use App\Http\Controllers\Api\IntegrationAdminController;
+use App\Http\Controllers\Integration;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,6 +28,22 @@ use App\Http\Controllers\Api\WarehouseController;
 | lives in App\Support\Permissions.
 |
 */
+
+/*
+|--------------------------------------------------------------------------
+| Team integration API (B5 / B7): /api/integration/v1
+|--------------------------------------------------------------------------
+| /health ay walang API key; lahat ng iba ay kailangan ng X-API-KEY.
+*/
+Route::prefix('integration/v1')->group(function () {
+    Route::get('/health', Integration\HealthController::class);
+
+    Route::middleware(['integration.key', 'throttle:120,1'])->group(function () {
+        Route::get('/staff-performance', [Integration\ReportController::class, 'staffPerformance']);
+        Route::get('/product-sales', [Integration\ReportController::class, 'productSales']);
+        Route::get('/customers/{customerCode}', [Integration\CustomerController::class, 'show']);
+    });
+});
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -126,6 +144,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/feedback/{feedback}/assign', [FeedbackController::class, 'assign'])->middleware('permission:feedback.assign');
     Route::post('/feedback/{feedback}/responses', [FeedbackController::class, 'respond']);
     Route::post('/feedback/{feedback}/status', [FeedbackController::class, 'changeStatus']);
+    Route::post('/feedback/{feedback}/forward-procurement', [FeedbackController::class, 'forwardToProcurement']);
 
     // Module 5: rewards and redemption
     Route::get('/rewards', [RewardController::class, 'index'])->middleware('permission:rewards.view');
@@ -139,4 +158,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/redemptions', [RedemptionController::class, 'store'])->middleware('permission:redemptions.process');
     Route::get('/redemptions/{redemption}', [RedemptionController::class, 'show'])->middleware('permission:redemptions.view');
     Route::post('/redemptions/{redemption}/cancel', [RedemptionController::class, 'cancel'])->middleware('permission:redemptions.cancel');
+
+    // Settings → Integrations (Admin lang)
+    Route::prefix('integration-admin')->middleware('permission:integrations.manage')->group(function () {
+        Route::get('/summary', [IntegrationAdminController::class, 'summary']);
+        Route::get('/health', [IntegrationAdminController::class, 'health']);
+        Route::get('/outbox', [IntegrationAdminController::class, 'outbox']);
+        Route::post('/outbox/{outbox}/retry', [IntegrationAdminController::class, 'retry']);
+        Route::post('/process-outbox', [IntegrationAdminController::class, 'processNow']);
+        Route::get('/logs', [IntegrationAdminController::class, 'logs']);
+        Route::get('/employees', [IntegrationAdminController::class, 'employees']);
+    });
 });

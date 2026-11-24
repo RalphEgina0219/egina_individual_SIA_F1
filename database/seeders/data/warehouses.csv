@@ -1,0 +1,4 @@
+warehouse_code,name,branch_code,is_default,status
+WH-001,Main Warehouse,BR-001,1,Active
+WH-002,Quezon City Stockroom,BR-002,1,Active
+WH-003,Makati Stockroom,BR-003,1,Active

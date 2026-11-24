@@ -19,7 +19,11 @@ class User extends Authenticatable
     'password',
     'role',
     'phone',
-    'is_active'
+    'is_active',
+    'employee_no',
+    'employment_status',
+    'can_login',
+    'branch_code',
   ];
 
   protected $hidden = [
@@ -30,11 +34,13 @@ class User extends Authenticatable
   protected $casts = [
     'email_verified_at' => 'datetime',
     'password' => 'hashed',
-    'is_active' => 'boolean'
+    'is_active' => 'boolean',
+    'can_login' => 'boolean',
   ];
 
   protected $attributes = [
     'is_active' => true,
+    'can_login' => true,
   ];
 
   public function orders(): HasMany

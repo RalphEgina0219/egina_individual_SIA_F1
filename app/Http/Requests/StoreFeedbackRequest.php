@@ -27,6 +27,8 @@ class StoreFeedbackRequest extends FormRequest
             'branch_id' => 'nullable|integer|exists:branches,id',
             'order_id' => 'nullable|integer|exists:orders,id',
             'product_id' => 'nullable|integer|exists:products,id',
+            // "Staff involved" (F8): employee_no galing HR, hal. EMP-0003
+            'employee_no' => ['nullable', 'string', 'max:20', 'regex:' . \App\Services\Integration\MasterCodes::EMPLOYEE],
             'priority' => ['nullable', Rule::in(config('shoplink.feedback_priorities'))],
             'received_at' => 'nullable|date|before_or_equal:now',
         ];
@@ -36,6 +38,7 @@ class StoreFeedbackRequest extends FormRequest
     {
         return [
             'contact_name.required_without' => 'Select a customer or enter the contact name of the person giving feedback.',
+            'employee_no.regex' => 'Staff involved must be an employee number like EMP-0003.',
         ];
     }
 }

@@ -4,9 +4,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # Pangalan ng image, para magamit din ng scheduler nang hindi na bina-build ulit.
+    image: sales-inventory-app:latest
     ports:
       - "8000:80"
-    environment:
+    environment: &laravel-env
       APP_NAME: Sales Inventory System
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-true}"
@@ -35,6 +37,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  # Team integration (B3/B7): parehong image ng app; nagpapatakbo ng
+  # integration:process-outbox bawat minuto at sync-masterdata bawat 15 minuto.
+  scheduler:
+    restart: unless-stopped
+    image: sales-inventory-app:latest
+    pull_policy: never
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      <<: *laravel-env
+      RUN_MIGRATIONS: "false"   # ang app lang ang nagma-migrate
+    depends_on:
+      - app
 
   db:
     restart: unless-stopped

@@ -8,6 +8,10 @@ use App\Http\Requests\StoreFeedbackRequest;
 use App\Models\ComplaintAssignment;
 use App\Models\CustomerFeedback;
 use App\Models\FeedbackResponse;
+use App\Models\Product;
+use App\Services\Integration\MasterCodes;
+use App\Services\Integration\Outbox;
+use App\Support\IntegrationResponse;
 use App\Models\User;
 use App\Services\CustomerNotifier;
 use Illuminate\Http\JsonResponse;
@@ -69,6 +73,7 @@ class FeedbackController extends Controller
     public function store(StoreFeedbackRequest $request): JsonResponse
     {
         $data = $request->validated();
+        $data['sku'] = $this->skuFor($data['product_id'] ?? null);
 
         $feedback = DB::transaction(function () use ($data, $request) {
             $feedback = CustomerFeedback::create(array_merge($data, [
@@ -124,7 +129,13 @@ class FeedbackController extends Controller
             'type' => ['sometimes', 'required', Rule::in(config('shoplink.feedback_types'))],
             'category' => ['sometimes', 'nullable', Rule::in(config('shoplink.feedback_categories'))],
             'priority' => ['sometimes', 'required', Rule::in(config('shoplink.feedback_priorities'))],
+            'product_id' => 'sometimes|nullable|integer|exists:products,id',
+            'employee_no' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:' . MasterCodes::EMPLOYEE],
         ]);
+
+        if (array_key_exists('product_id', $data)) {
+            $data['sku'] = $this->skuFor($data['product_id']);
+        }
 
         $this->guardNotClosed($feedback);
 
@@ -302,6 +313,79 @@ class FeedbackController extends Controller
         }
 
         return $this->ok($feedback->fresh(), "Status changed to {$data['status']}");
+    }
+
+    /**
+     * F7: "Forward to Procurement". Inilalagay sa outbox ang POST /supplier-issues
+     * (PROC). Para lang sa complaint tungkol sa produktong may INV SKU.
+     */
+    public function forwardToProcurement(Request $request, CustomerFeedback $feedback): JsonResponse
+    {
+        $this->authorizeAccess($request->user(), $feedback, true);
+
+        $data = $request->validate([
+            'issue_type' => ['required', Rule::in(MasterCodes::ISSUE_TYPES)],
+            'description' => 'required|string|max:2000',
+            'quantity_affected' => 'required|integer|min:1|max:100000',
+            'employee_no' => ['nullable', 'string', 'max:20', 'regex:' . MasterCodes::EMPLOYEE],
+        ]);
+
+        if (!$feedback->is_complaint) {
+            throw new BusinessRuleException('Only complaints can be forwarded to Procurement.');
+        }
+
+        $feedback->loadMissing(['product', 'branch']);
+        $sku = $feedback->product?->hasInventorySku() ? $feedback->product->sku : null;
+        if (!$sku) {
+            throw new BusinessRuleException('Link this complaint to a product with an INV SKU (SKU-xxxx) before forwarding it.');
+        }
+        if (in_array($feedback->forward_status, ['pending', 'sent'], true)) {
+            throw new BusinessRuleException("This complaint was already forwarded to Procurement ({$feedback->forward_status}).");
+        }
+
+        $payload = [
+            'source_system' => config('integration.system_code', 'CRM'),
+            'reference_number' => $feedback->feedback_number,
+            'sku' => $sku,
+            'supplier_code' => $feedback->supplier_code,
+            'issue_type' => $data['issue_type'],
+            'description' => $data['description'],
+            'quantity_affected' => (int) $data['quantity_affected'],
+            'branch_code' => MasterCodes::isBranch($feedback->branch?->code) ? $feedback->branch->code : null,
+            'reported_at' => IntegrationResponse::date($feedback->received_at ?? $feedback->created_at),
+        ];
+
+        DB::transaction(function () use ($feedback, $data, $payload, $sku, $request) {
+            $existing = Outbox::find('PROC', '/supplier-issues', $feedback->feedback_number);
+            $existing
+                ? Outbox::retry($existing, $payload) // dating failed: ipadala ulit gamit ang bagong detalye
+                : Outbox::push('PROC', 'POST', '/supplier-issues', $payload, $feedback->feedback_number);
+
+            $feedback->update(array_filter([
+                'sku' => $sku,
+                'employee_no' => $data['employee_no'] ?? null,
+            ]) + [
+                'forward_to' => 'PROC',
+                'forward_status' => 'pending',
+                'forwarded_at' => now(),
+            ]);
+
+            FeedbackResponse::create([
+                'customer_feedback_id' => $feedback->id,
+                'user_id' => $request->user()->id,
+                'response_type' => 'Internal Note',
+                'message' => "Forwarded to Procurement as a supplier issue ({$data['issue_type']}, qty {$data['quantity_affected']}): {$data['description']}",
+            ]);
+        });
+
+        return $this->ok($feedback->fresh(), 'Forwarded to Procurement. It will be sent when the connection is available.');
+    }
+
+    private function skuFor(?int $productId): ?string
+    {
+        $product = $productId ? Product::find($productId) : null;
+
+        return $product?->hasInventorySku() ? $product->sku : null;
     }
 
     private function statusTimestamps(string $status): array

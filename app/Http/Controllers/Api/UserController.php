@@ -36,6 +36,7 @@ class UserController extends Controller
             'role' => ['required', Rule::in(Permissions::ROLES)],
             'phone' => 'nullable|string|max:20',
             'is_active' => 'sometimes|boolean',
+            'employee_no' => ['nullable', 'string', 'max:20', 'regex:' . \App\Services\Integration\MasterCodes::EMPLOYEE, 'unique:users,employee_no'],
         ]);
 
         $user = User::create($data);
@@ -52,6 +53,7 @@ class UserController extends Controller
             'role' => ['sometimes', 'required', Rule::in(Permissions::ROLES)],
             'phone' => 'nullable|string|max:20',
             'is_active' => 'sometimes|boolean',
+            'employee_no' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:' . \App\Services\Integration\MasterCodes::EMPLOYEE, Rule::unique('users', 'employee_no')->ignore($user->id)],
         ]);
 
         if ($user->id === $request->user()->id && ((isset($data['is_active']) && !$data['is_active']) || (isset($data['role']) && $data['role'] !== $user->role))) {

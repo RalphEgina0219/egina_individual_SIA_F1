@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Inventory;
 use App\Models\Product;
+use App\Services\Integration\SalesStockSync;
 use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
-  public function __construct(private LoyaltyService $loyalty)
+  public function __construct(private LoyaltyService $loyalty, private SalesStockSync $stockSync)
   {
   }
 
@@ -108,6 +109,7 @@ class OrderController extends Controller
         'customer_id' => $customer?->id,
         'branch_id' => $validated['branch_id'] ?? null,
         'user_id' => $user ? $user->id : null,
+        'cashier_employee_no' => $user?->employee_no,
         'order_date' => now(),
         'total_amount' => 0, // Will be calculated
         'payment_method' => $validated['payment_method'],
@@ -148,6 +150,9 @@ class OrderController extends Controller
 
       // Update order total
       $order->update(['total_amount' => $totalAmount]);
+
+      // F3: SALE_OUT papunta sa INV (outbox lang; hindi pinipigilan ang benta)
+      $this->stockSync->queueSaleOut($order);
 
       // Commit transaction
       DB::commit();
@@ -230,6 +235,8 @@ class OrderController extends Controller
       if ($validated['order_status'] === 'Cancelled' && $order->order_status !== 'Cancelled') {
         $this->returnToInventory($order);
         $order->update($validated);
+        // F3: SALE_RETURN papunta sa INV (kung may SALE_OUT)
+        $this->stockSync->queueSaleReturn($order);
         $reversal = $this->loyalty->reverseForOrder($order);
         $loyalty = $reversal ? ['reversed_points' => abs($reversal->points)] : null;
 
