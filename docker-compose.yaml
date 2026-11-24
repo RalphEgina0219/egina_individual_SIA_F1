@@ -20,6 +20,18 @@ services:
       SESSION_DRIVER: database
       CACHE_STORE: database
       QUEUE_CONNECTION: database
+      # Team integration (B6) – galing sa .env katabi ng file na ito
+      SYSTEM_CODE: "${SYSTEM_CODE:-CRM}"
+      INTEGRATION_ENABLED: "${INTEGRATION_ENABLED:-false}"
+      INTEGRATION_API_KEY: "${INTEGRATION_API_KEY:-}"
+      CRM_API_URL: "${CRM_API_URL:-}"
+      CRM_API_KEY: "${CRM_API_KEY:-}"
+      PROC_API_URL: "${PROC_API_URL:-}"
+      PROC_API_KEY: "${PROC_API_KEY:-}"
+      INV_API_URL: "${INV_API_URL:-}"
+      INV_API_KEY: "${INV_API_KEY:-}"
+      HR_API_URL: "${HR_API_URL:-}"
+      HR_API_KEY: "${HR_API_KEY:-}"
     depends_on:
       db:
         condition: service_healthy
