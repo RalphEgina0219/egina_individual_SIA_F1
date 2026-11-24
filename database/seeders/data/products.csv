@@ -1,0 +1,16 @@
+sku,name,category,unit,price,cost,reorder_level,reorder_quantity,preferred_supplier_code
+SKU-0001,Rice 5kg,Grocery,bag,320.00,270.00,10,50,SUP-0001
+SKU-0002,Cooking Oil 1L,Grocery,bottle,95.00,78.00,15,60,SUP-0001
+SKU-0003,White Sugar 1kg,Grocery,pack,85.00,70.00,15,60,SUP-0001
+SKU-0004,Canned Sardines 155g,Grocery,can,25.00,19.50,30,120,SUP-0002
+SKU-0005,Instant Noodles 55g,Grocery,pack,15.00,11.00,40,200,SUP-0002
+SKU-0006,Bottled Water 500ml,Beverages,bottle,20.00,14.00,40,200,SUP-0003
+SKU-0007,Orange Juice 1L,Beverages,bottle,110.00,88.00,10,40,SUP-0003
+SKU-0008,3-in-1 Coffee 10s,Beverages,pack,75.00,60.00,20,80,SUP-0003
+SKU-0009,Laundry Detergent 1kg,Household,pack,145.00,118.00,10,40,SUP-0004
+SKU-0010,Dishwashing Liquid 500ml,Household,bottle,65.00,50.00,15,60,SUP-0004
+SKU-0011,Tissue Roll 4s,Household,pack,90.00,72.00,15,60,SUP-0004
+SKU-0012,Bath Soap 135g,Personal Care,bar,45.00,35.00,20,100,SUP-0005
+SKU-0013,Shampoo 340ml,Personal Care,bottle,180.00,145.00,10,40,SUP-0005
+SKU-0014,Toothpaste 150g,Personal Care,tube,95.00,76.00,15,60,SUP-0005
+SKU-0015,AA Batteries 4s,Household,pack,120.00,95.00,10,30,SUP-0004

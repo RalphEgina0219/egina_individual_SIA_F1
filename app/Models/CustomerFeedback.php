@@ -32,12 +32,20 @@ class CustomerFeedback extends Model
         'resolution_summary',
         'resolved_at',
         'closed_at',
-        'customer_notified_at'
+        'customer_notified_at',
+        'sku',
+        'employee_no',
+        'supplier_code',
+        'forward_to',
+        'forward_status',
+        'forwarded_at',
+        'supplier_issue_number',
     ];
 
     protected $attributes = [
         'status' => 'Pending',
         'priority' => 'Medium',
+        'forward_status' => 'not_forwarded',
     ];
 
     protected $casts = [
@@ -45,7 +53,8 @@ class CustomerFeedback extends Model
         'received_at' => 'datetime',
         'resolved_at' => 'datetime',
         'closed_at' => 'datetime',
-        'customer_notified_at' => 'datetime'
+        'customer_notified_at' => 'datetime',
+        'forwarded_at' => 'datetime',
     ];
 
     protected $appends = ['is_complaint'];
@@ -56,6 +65,8 @@ class CustomerFeedback extends Model
 
         static::created(function ($feedback) {
             $feedback->reference_number = sprintf('FB-%s-%06d', now()->format('Y'), $feedback->id);
+            // Team format (B4): FB-YYYYMMDD-0001, petsa sa oras ng Pilipinas.
+            $feedback->feedback_number = sprintf('FB-%s-%04d', now('Asia/Manila')->format('Ymd'), $feedback->id);
             $feedback->saveQuietly();
         });
     }

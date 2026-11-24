@@ -1,0 +1,10 @@
+employee_no,first_name,last_name,email,branch_code,department_code,department,position,employment_status,crm_role
+EMP-0001,Maria,Santos,maria.santos@example.com,BR-001,DEP-001,Management,Store Manager,Active,Admin
+EMP-0002,Jose,Reyes,jose.reyes@example.com,BR-001,DEP-001,Management,Assistant Manager,Active,Manager
+EMP-0003,Ana,Cruz,ana.cruz@example.com,BR-001,DEP-002,Sales,Sales Associate,Active,Sales
+EMP-0004,Mark,Garcia,mark.garcia@example.com,BR-002,DEP-002,Sales,Sales Associate,Active,Sales
+EMP-0005,Liza,Mendoza,liza.mendoza@example.com,BR-001,DEP-003,Customer Service,CS Representative,Active,Customer Service
+EMP-0006,Paolo,Torres,paolo.torres@example.com,BR-001,DEP-004,Marketing,Marketing Staff,Active,Marketing
+EMP-0007,Ramon,Villanueva,ramon.villanueva@example.com,BR-001,DEP-005,Warehouse,Inventory Clerk,Active,Warehouse
+EMP-0008,Grace,Ramos,grace.ramos@example.com,BR-002,DEP-006,Procurement,Purchasing Officer,Active,
+EMP-0009,Carlo,Aquino,carlo.aquino@example.com,BR-003,DEP-007,Human Resources,HR Officer,Active,

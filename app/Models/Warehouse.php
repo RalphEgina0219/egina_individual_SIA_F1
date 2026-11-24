@@ -12,7 +12,9 @@ class Warehouse extends Model
 
     protected $fillable = [
         'warehouse_name',
-        'location'
+        'location',
+        'warehouse_code',
+        'branch_code',
     ];
 
     public function inventory(): HasMany

@@ -72,6 +72,9 @@ class Permissions
         'feedback.record' => [self::ADMIN, self::MANAGER, self::CUSTOMER_SERVICE],
         'feedback.respond' => [self::ADMIN, self::MANAGER, self::CUSTOMER_SERVICE],
         'feedback.assign' => [self::ADMIN, self::MANAGER],
+
+        // Team integration (Settings → Integrations)
+        'integrations.manage' => [self::ADMIN],
     ];
 
     public static function allows(?string $role, string $permission): bool

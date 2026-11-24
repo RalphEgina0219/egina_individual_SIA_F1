@@ -53,6 +53,13 @@ class CustomerDashboardController extends Controller
             'roles' => Permissions::ROLES,
             'branches' => Branch::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
             'membership_levels' => MembershipLevel::orderBy('rank')->get(['id', 'name', 'code', 'rank', 'min_lifetime_points', 'points_multiplier', 'is_active']),
+            'products' => \App\Models\Product::orderBy('product_name')->get(['id', 'product_name', 'sku']),
+            // "Staff involved" (F8): mga empleyado galing HR, o users na may employee_no
+            'employees' => \App\Models\Employee::orderBy('employee_no')->get(['employee_no', 'first_name', 'last_name', 'employment_status'])
+                ->map(fn ($e) => ['employee_no' => $e->employee_no, 'name' => $e->full_name, 'status' => $e->employment_status])
+                ->concat(User::whereNotNull('employee_no')->get(['employee_no', 'name'])->map(fn ($u) => ['employee_no' => $u->employee_no, 'name' => $u->name, 'status' => null]))
+                ->unique('employee_no')->sortBy('employee_no')->values(),
+            'issue_types' => \App\Services\Integration\MasterCodes::ISSUE_TYPES,
             'staff' => $user->can('feedback.assign')
                 ? User::where('is_active', true)->orderBy('name')->get(['id', 'name', 'role'])
                 : [],

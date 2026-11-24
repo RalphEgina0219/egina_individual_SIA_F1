@@ -1,0 +1,16 @@
+type,match_field,match_value,code
+branch,code,CAL-MAIN,BR-001
+branch,code,CAL-02,BR-002
+warehouse,warehouse_name,Main Warehouse,WH-001
+warehouse,warehouse_name,Branch 2 Stockroom,WH-002
+product,sku,GRC-RICE5-001,SKU-0001
+product,sku,GRC-OIL1L-001,SKU-0002
+product,sku,CAN-SARD155-001,SKU-0004
+product,sku,HHD-DET1KG-001,SKU-0009
+product,sku,PRC-SOAP135-001,SKU-0012
+user,email,sysadmin@example.com,EMP-0001
+user,email,admin@example.com,EMP-0002
+user,email,sales@example.com,EMP-0003
+user,email,customerservice@example.com,EMP-0005
+user,email,marketing@example.com,EMP-0006
+user,email,warehouse@example.com,EMP-0007

@@ -122,6 +122,8 @@ export const feedbackService = {
   assign: (id, data) => api.post(`/feedback/${id}/assign`, data).then((res) => res.data),
   respond: (id, data) => api.post(`/feedback/${id}/responses`, data).then((res) => res.data),
   changeStatus: (id, data) => api.post(`/feedback/${id}/status`, data).then((res) => res.data),
+  // F7: ipasa sa Procurement (PROC) bilang supplier issue
+  forwardToProcurement: (id, data) => api.post(`/feedback/${id}/forward-procurement`, data).then((res) => res.data),
 };
 
 export const rewardService = {
@@ -187,6 +189,17 @@ export const warehouseService = {
   create: (data) => api.post('/warehouses', data).then((res) => res.data),
   update: (id, data) => api.put(`/warehouses/${id}`, data).then((res) => res.data),
   delete: (id) => api.delete(`/warehouses/${id}`).then((res) => res.data),
+};
+
+// Settings → Integrations (Admin lang)
+export const integrationService = {
+  summary: () => api.get('/integration-admin/summary').then((res) => res.data),
+  health: () => api.get('/integration-admin/health').then((res) => res.data),
+  outbox: (params) => api.get('/integration-admin/outbox', { params }).then((res) => res.data),
+  retry: (id) => api.post(`/integration-admin/outbox/${id}/retry`).then((res) => res.data),
+  processNow: () => api.post('/integration-admin/process-outbox').then((res) => res.data),
+  logs: (params) => api.get('/integration-admin/logs', { params }).then((res) => res.data),
+  employees: () => api.get('/integration-admin/employees').then((res) => res.data),
 };
 
 export default api;

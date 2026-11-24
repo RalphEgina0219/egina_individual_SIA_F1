@@ -46,3 +46,8 @@ Artisan::command('loyalty:expire-points', function (LoyaltyService $loyalty) {
 
 Schedule::command('customers:birthday-greetings')->dailyAt('08:00');
 Schedule::command('loyalty:expire-points')->dailyAt('01:00');
+
+// Team integration (B7): ipadala ang outbox bawat minuto; kunin ang mga kopya bawat 15 minuto.
+// Parehong walang ginagawa kapag INTEGRATION_ENABLED=false.
+Schedule::command('integration:process-outbox')->everyMinute()->withoutOverlapping();
+Schedule::command('integration:sync-masterdata')->everyFifteenMinutes()->withoutOverlapping();

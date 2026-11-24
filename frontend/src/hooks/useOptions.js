@@ -23,6 +23,9 @@ const EMPTY = {
   branches: [],
   membership_levels: [],
   staff: [],
+  products: [],
+  employees: [],
+  issue_types: [],
 };
 
 /**

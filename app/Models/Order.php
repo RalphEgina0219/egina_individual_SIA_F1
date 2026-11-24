@@ -17,11 +17,14 @@ class Order extends Model
         'order_date',
         'total_amount',
         'payment_method',
-        'order_status'
+        'order_status',
+        'cashier_employee_no',
+        'stock_sync_status',
     ];
 
     protected $attributes = [
         'order_status' => 'Pending',
+        'stock_sync_status' => 'not_sent',
         'total_amount' => 0,
     ];
 

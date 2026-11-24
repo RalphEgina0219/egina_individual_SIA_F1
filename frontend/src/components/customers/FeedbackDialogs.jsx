@@ -39,7 +39,12 @@ const emptyFeedback = {
   contact_name: '',
   contact_info: '',
   received_at: '',
+  product_id: '',
+  employee_no: '',
 };
+
+const SKU_PATTERN = /^SKU-\d{4,}$/;
+const FORWARD_LABELS = { not_forwarded: 'Not forwarded', pending: 'Waiting to send', sent: 'Sent to Procurement', failed: 'Failed to send' };
 
 /**
  * Centralized recording of feedback received in-store, by website, e-mail,
@@ -67,6 +72,8 @@ export const FeedbackFormDialog = ({ open, onClose, onSaved, defaultCustomer = n
         category: values.category || null,
         branch_id: values.branch_id || null,
         received_at: values.received_at || null,
+        product_id: values.product_id || null,
+        employee_no: values.employee_no || null,
         contact_name: customer ? null : values.contact_name || null,
         contact_info: customer ? null : values.contact_info || null,
       };
@@ -143,6 +150,20 @@ export const FeedbackFormDialog = ({ open, onClose, onSaved, defaultCustomer = n
               error={Boolean(errors.received_at)} slotProps={{ inputLabel: { shrink: true } }}
             />
           </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField select fullWidth label="Product (optional)" value={values.product_id} onChange={(e) => set('product_id', e.target.value)}
+              error={Boolean(errors.product_id)} helperText={errors.product_id || 'Needed to forward a product complaint to Procurement'}>
+              <MenuItem value="">None</MenuItem>
+              {options.products.map((p) => <MenuItem key={p.id} value={p.id}>{p.product_name} ({p.sku})</MenuItem>)}
+            </TextField>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField select fullWidth label="Staff involved (optional)" value={values.employee_no} onChange={(e) => set('employee_no', e.target.value)}
+              error={Boolean(errors.employee_no)} helperText={errors.employee_no || 'Counts in the staff performance report for HR'}>
+              <MenuItem value="">None</MenuItem>
+              {options.employees.map((emp) => <MenuItem key={emp.employee_no} value={emp.employee_no}>{emp.employee_no} - {emp.name}</MenuItem>)}
+            </TextField>
+          </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <Typography variant="caption" color="text.secondary">Rating</Typography>
             <Box><Rating value={values.rating} onChange={(_, v) => set('rating', v)} /></Box>
@@ -190,6 +211,7 @@ export const FeedbackDetailDialog = ({ feedbackId, onClose, onChanged }) => {
   const [assign, setAssign] = useState({ department: '', assigned_to: '', notes: '' });
   const [response, setResponse] = useState({ response_type: 'Investigation', message: '', communicated_via: '', send_email: false });
   const [statusChange, setStatusChange] = useState({ status: '', note: '', notify_customer: false });
+  const [forwardOpen, setForwardOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -252,6 +274,14 @@ export const FeedbackDetailDialog = ({ feedbackId, onClose, onChanged }) => {
                   <Grid size={6}><InfoRow label="Branch" value={feedback.branch?.name} /></Grid>
                   <Grid size={6}><InfoRow label="Department" value={feedback.department || 'Not assigned'} /></Grid>
                   <Grid size={6}><InfoRow label="Assigned To" value={feedback.assignee?.name || '-'} /></Grid>
+                  <Grid size={6}><InfoRow label="Feedback No." value={feedback.feedback_number} /></Grid>
+                  <Grid size={6}><InfoRow label="Product" value={feedback.product ? `${feedback.product.product_name} (${feedback.product.sku})` : '-'} /></Grid>
+                  <Grid size={6}><InfoRow label="Staff involved" value={feedback.employee_no || '-'} /></Grid>
+                  {feedback.is_complaint && (
+                    <Grid size={6}>
+                      <InfoRow label="Procurement" value={`${FORWARD_LABELS[feedback.forward_status] || feedback.forward_status}${feedback.supplier_issue_number ? ` · ${feedback.supplier_issue_number}` : ''}`} />
+                    </Grid>
+                  )}
                   {feedback.rating && <Grid size={12}><Rating value={feedback.rating} readOnly size="small" /></Grid>}
                 </Grid>
                 <Divider sx={{ my: 1 }} />
@@ -286,7 +316,36 @@ export const FeedbackDetailDialog = ({ feedbackId, onClose, onChanged }) => {
                         {options.feedback_priorities.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
                       </TextField>
                     </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField select fullWidth size="small" label="Product" value={feedback.product_id || ''}
+                        onChange={(e) => run(() => feedbackService.update(feedback.id, { product_id: e.target.value || null }))}>
+                        <MenuItem value="">None</MenuItem>
+                        {options.products.map((p) => <MenuItem key={p.id} value={p.id}>{p.product_name} ({p.sku})</MenuItem>)}
+                      </TextField>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField select fullWidth size="small" label="Staff involved" value={feedback.employee_no || ''}
+                        onChange={(e) => run(() => feedbackService.update(feedback.id, { employee_no: e.target.value || null }))}>
+                        <MenuItem value="">None</MenuItem>
+                        {options.employees.map((emp) => <MenuItem key={emp.employee_no} value={emp.employee_no}>{emp.employee_no} - {emp.name}</MenuItem>)}
+                      </TextField>
+                    </Grid>
                   </Grid>
+                </Paper>
+              )}
+
+              {canRespond && !closed && feedback.is_complaint && (
+                <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>Procurement (supplier issue)</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {SKU_PATTERN.test(feedback.product?.sku || '')
+                      ? 'Send this product problem to Procurement so they can raise it with the supplier.'
+                      : 'Link a product with an INV SKU (SKU-xxxx) above to enable forwarding.'}
+                  </Typography>
+                  <Button size="small" variant="outlined" onClick={() => setForwardOpen(true)}
+                    disabled={working || !SKU_PATTERN.test(feedback.product?.sku || '') || ['pending', 'sent'].includes(feedback.forward_status)}>
+                    {feedback.forward_status === 'failed' ? 'Forward to Procurement again' : 'Forward to Procurement'}
+                  </Button>
                 </Paper>
               )}
 
@@ -440,6 +499,72 @@ export const FeedbackDetailDialog = ({ feedbackId, onClose, onChanged }) => {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+      {forwardOpen && feedback && (
+        <ForwardToProcurementDialog
+          feedback={feedback}
+          working={working}
+          onClose={() => setForwardOpen(false)}
+          onSubmit={(data) => run(() => feedbackService.forwardToProcurement(feedback.id, data), () => setForwardOpen(false))}
+        />
+      )}
+    </Dialog>
+  );
+};
+
+/**
+ * F7: form bago i-forward ang reklamo sa Procurement (PROC /supplier-issues).
+ */
+const ForwardToProcurementDialog = ({ feedback, onClose, onSubmit, working }) => {
+  const options = useOptions();
+  const [values, setValues] = useState({
+    issue_type: 'Defective',
+    description: feedback.message || '',
+    quantity_affected: 1,
+    employee_no: feedback.employee_no || '',
+  });
+  const set = (name, value) => setValues((prev) => ({ ...prev, [name]: value }));
+
+  return (
+    <Dialog open onClose={working ? undefined : onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Forward to Procurement</DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          {feedback.feedback_number} · {feedback.product?.product_name} ({feedback.product?.sku})
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField select fullWidth required label="Issue type" value={values.issue_type} onChange={(e) => set('issue_type', e.target.value)}>
+              {options.issue_types.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+            </TextField>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField fullWidth required type="number" label="Quantity affected" value={values.quantity_affected}
+              onChange={(e) => set('quantity_affected', e.target.value)} slotProps={{ htmlInput: { min: 1 } }} />
+          </Grid>
+          <Grid size={12}>
+            <TextField fullWidth required multiline minRows={3} label="Description" value={values.description} onChange={(e) => set('description', e.target.value)} />
+          </Grid>
+          <Grid size={12}>
+            <TextField select fullWidth label="Staff involved" value={values.employee_no} onChange={(e) => set('employee_no', e.target.value)}>
+              <MenuItem value="">None</MenuItem>
+              {options.employees.map((emp) => <MenuItem key={emp.employee_no} value={emp.employee_no}>{emp.employee_no} - {emp.name}</MenuItem>)}
+            </TextField>
+          </Grid>
+        </Grid>
+        <Alert severity="info" sx={{ mt: 2 }}>
+          If Procurement is offline, the issue waits in the outbox and is sent automatically later.
+        </Alert>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={working}>Cancel</Button>
+        <Button
+          variant="contained" sx={{ backgroundColor: '#1a237e' }}
+          disabled={working || !values.description.trim() || !(Number(values.quantity_affected) >= 1)}
+          onClick={() => onSubmit({ ...values, quantity_affected: Number(values.quantity_affected), employee_no: values.employee_no || null })}
+        >
+          Forward
+        </Button>
       </DialogActions>
     </Dialog>
   );

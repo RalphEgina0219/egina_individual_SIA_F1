@@ -414,6 +414,17 @@ const Orders = () => {
                         color={getStatusColor(order.order_status)}
                         size="small"
                       />
+                      {order.stock_sync_status && order.stock_sync_status !== 'not_sent' && (
+                        <Tooltip title="Stock sync with the Inventory system (INV)">
+                          <Chip
+                            label={`INV: ${order.stock_sync_status}`}
+                            size="small"
+                            variant="outlined"
+                            color={{ synced: 'success', pending: 'warning', failed: 'error' }[order.stock_sync_status] || 'default'}
+                            sx={{ ml: 0.5 }}
+                          />
+                        </Tooltip>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Chip label={order.payment_method} size="small" variant="outlined" />

@@ -7,6 +7,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -20,11 +21,25 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'permission' => \App\Http\Middleware\PermissionMiddleware::class,
+            'integration.key' => \App\Http\Middleware\VerifyIntegrationKey::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Expected validation-style outcomes, not application errors.
         $exceptions->dontReport(BusinessRuleException::class);
+
+        // Team integration (B5): iisang error format sa /api/integration/v1.
+        $exceptions->render(function (ValidationException $e, Request $request) {
+            if ($request->is('api/integration/*')) {
+                return \App\Support\IntegrationResponse::error('Validation failed', $e->errors(), 422);
+            }
+        });
+
+        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+            if ($request->is('api/integration/*')) {
+                return \App\Support\IntegrationResponse::error('Not found', [], 404);
+            }
+        });
 
         $exceptions->render(function (BusinessRuleException $e, Request $request) {
             return response()->json(array_filter([

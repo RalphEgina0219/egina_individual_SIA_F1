@@ -66,6 +66,13 @@ class AuthController extends Controller
             ]);
         }
 
+        // F1: kapag Suspended / Resigned / Terminated sa HR, bawal mag-login.
+        if (!$user->can_login) {
+            throw ValidationException::withMessages([
+                'email' => ['Sign-in is blocked because your HR employment status is ' . ($user->employment_status ?: 'inactive') . '. Contact HR.'],
+            ]);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
