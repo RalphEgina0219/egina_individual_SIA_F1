@@ -103,6 +103,7 @@ const ProductDetail = () => {
 						{product.product_name}
 					</Typography>
 					<Chip label={product.sku} size="small" variant="outlined" />
+					{product.legacy_sku && <Chip label={`old: ${product.legacy_sku}`} size="small" variant="outlined" color="default" />}
 				</Box>
 				<Button
 					variant="contained"
@@ -134,6 +135,21 @@ const ProductDetail = () => {
 								<Typography variant="h6" color="primary">
 									${parseFloat(product.unit_price).toFixed(2)}
 								</Typography>
+							</Grid>
+							<Grid item xs={6}>
+								<Typography variant="subtitle2" color="textSecondary">INV stock (from Inventory system)</Typography>
+								<Typography variant="body1">
+									{product.inv_stock ?? 'Not synced yet'}
+									{product.inv_stock_synced_at && (
+										<Typography component="span" variant="caption" color="textSecondary">
+											{' '}· {new Date(product.inv_stock_synced_at).toLocaleString()}
+										</Typography>
+									)}
+								</Typography>
+							</Grid>
+							<Grid item xs={6}>
+								<Typography variant="subtitle2" color="textSecondary">Status</Typography>
+								<Typography variant="body1">{product.status || 'Active'}</Typography>
 							</Grid>
 							<Grid item xs={12}>
 								<Typography variant="subtitle2" color="textSecondary">Description</Typography>

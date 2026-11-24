@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { userService } from '../services/api';
 import { apiError } from '../utils/helpers';
+import { useAuth } from '../context/AuthContext';
+import IntegrationsPanel from '../components/settings/IntegrationsPanel';
 import {
 	Box,
 	Paper,
@@ -40,10 +42,12 @@ import {
 	Business as BusinessIcon,
 	Notifications as NotificationsIcon,
 	Palette as PaletteIcon,
+	Hub as HubIcon,
 } from '@mui/icons-material';
 import Grid from '@mui/material/Grid';
 
 const Settings = () => {
+	const { can } = useAuth();
 	const [tabValue, setTabValue] = useState(0);
 	const [loading, setLoading] = useState(false);
 	const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -112,6 +116,7 @@ const Settings = () => {
 		name: '',
 		email: '',
 		role: 'Sales',
+		employee_no: '',
 		password: '',
 		confirmPassword: '',
 	});
@@ -180,6 +185,7 @@ const Settings = () => {
 				name: user.name,
 				email: user.email,
 				role: user.role,
+				employee_no: user.employee_no || '',
 				password: '',
 				confirmPassword: '',
 			});
@@ -188,6 +194,7 @@ const Settings = () => {
 				name: '',
 				email: '',
 				role: 'Sales',
+				employee_no: '',
 				password: '',
 				confirmPassword: '',
 			});
@@ -201,6 +208,7 @@ const Settings = () => {
 				name: userForm.name,
 				email: userForm.email,
 				role: userForm.role,
+				employee_no: userForm.employee_no.trim() || null,
 			};
 			if (userForm.password) {
 				payload.password = userForm.password;
@@ -278,6 +286,7 @@ const Settings = () => {
 					<Tab icon={<NotificationsIcon />} label="Notifications" />
 					<Tab icon={<PaletteIcon />} label="Theme" />
 					<Tab icon={<SecurityIcon />} label="User Management" />
+					{can('integrations.manage') && <Tab icon={<HubIcon />} label="Integrations" />}
 				</Tabs>
 			</Paper>
 
@@ -712,7 +721,7 @@ const Settings = () => {
 											/>
 										</Box>
 									}
-									secondary={user.email}
+									secondary={user.employee_no ? `${user.email} · ${user.employee_no}${user.can_login === false ? ` · blocked by HR (${user.employment_status})` : ''}` : user.email}
 								/>
 								<ListItemSecondaryAction>
 									<IconButton
@@ -748,6 +757,9 @@ const Settings = () => {
 				</Paper>
 			)}
 
+			{/* Integrations Tab (Admin lang) */}
+			{tabValue === 5 && can('integrations.manage') && <IntegrationsPanel />}
+
 			{/* Add/Edit User Dialog */}
 			<Dialog open={userDialog} onClose={() => setUserDialog(false)} maxWidth="sm" fullWidth>
 				<DialogTitle>
@@ -774,6 +786,17 @@ const Settings = () => {
 								value={userForm.email}
 								onChange={handleUserFormChange}
 								required
+							/>
+						</Grid>
+						<Grid item xs={12}>
+							<TextField
+								fullWidth
+								label="Employee No. (from HR)"
+								name="employee_no"
+								placeholder="EMP-0003"
+								value={userForm.employee_no}
+								onChange={handleUserFormChange}
+								helperText="Links this account to the HR employee record (used for sales, staff performance and HR status)."
 							/>
 						</Grid>
 						<Grid item xs={12}>
