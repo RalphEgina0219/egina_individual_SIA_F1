@@ -10,6 +10,8 @@ services:
       - "8000:80"
     environment: &laravel-env
       APP_NAME: Sales Inventory System
+      # Iisang APP_KEY para sa app at scheduler, galing sa .env (hindi nagbabago kapag nag-rebuild)
+      APP_KEY: "${APP_KEY:-}"
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-true}"
       APP_URL: http://${PUBLIC_HOST:-localhost}:8000

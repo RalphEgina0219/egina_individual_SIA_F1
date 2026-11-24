@@ -126,6 +126,37 @@ class IntegrationTest extends TestCase
             ]);
     }
 
+    public function test_staff_performance_month_follows_philippine_time(): void
+    {
+        $this->userWithRole('Sales', ['employee_no' => 'EMP-0003']);
+        // Naka-UTC ang database. 15:30 UTC = 23:30 Nov 30 sa Manila; 16:30 UTC = 00:30 Dec 1 sa Manila.
+        Order::create(['order_date' => '2026-11-30 15:30:00', 'total_amount' => 100, 'payment_method' => 'Cash', 'order_status' => 'Delivered', 'cashier_employee_no' => 'EMP-0003']);
+        Order::create(['order_date' => '2026-11-30 16:30:00', 'total_amount' => 40, 'payment_method' => 'Cash', 'order_status' => 'Delivered', 'cashier_employee_no' => 'EMP-0003']);
+
+        $this->api('/staff-performance?period=2026-11')->assertJsonPath('data.items.0.total_sales', '100.00');
+        $this->api('/staff-performance?period=2026-12')->assertJsonPath('data.items.0.total_sales', '40.00');
+    }
+
+    public function test_dates_sent_to_other_systems_use_plus_eight(): void
+    {
+        $customer = $this->activeCustomer();
+        $this->api("/customers/{$customer->customer_code}")
+            ->assertJsonPath('data.updated_at', fn ($v) => str_ends_with($v, '+08:00'));
+
+        // received_at sa database: 02:15 UTC → sa PROC: 10:15+08:00
+        $product = $this->invProduct('SKU-0001');
+        $this->actingAsRole('Customer Service');
+        $id = $this->postJson('/api/feedback', [
+            'contact_name' => 'Walk-in', 'type' => 'Complaint', 'channel' => 'In-store',
+            'subject' => 'Broken', 'message' => 'x', 'product_id' => $product->id,
+        ])->json('data.id');
+        CustomerFeedback::whereKey($id)->update(['received_at' => '2026-11-23 02:15:00']);
+
+        $this->postJson("/api/feedback/{$id}/forward-procurement", ['issue_type' => 'Defective', 'description' => 'x', 'quantity_affected' => 1])->assertOk();
+
+        $this->assertSame('2026-11-23T10:15:00+08:00', IntegrationOutbox::where('endpoint', '/supplier-issues')->sole()->payload['reported_at']);
+    }
+
     public function test_staff_performance_rejects_bad_period(): void
     {
         $this->api('/staff-performance?period=2026-13')
