@@ -1,7 +1,7 @@
 # CRM – Team Integration (API v1)
 
 Ang CRM (Customer Management, Member 1) ay isa sa 4 na system ng grupo: **CRM**, **PROC**, **INV** at **HR**.
-Ang patakaran ng grupo ay nasa `BAHAGI-B-C-STANDARD.md` (Bahagi B at C). Ang file na ito ay para sa CRM lang.
+Ang patakaran ng grupo ay nasa Bahagi B at C ng prompt ng grupo (`BAHAGI-B-C-STANDARD.md` sa zip na ibinahagi sa grupo). Ang file na ito ay para sa CRM lang.
 
 - **Base URL:** `http://<CRM Elastic IP>:8000/api/integration/v1`
 - **Security:** header na `X-API-KEY: <INTEGRATION_API_KEY ng CRM>`. Mali o walang key: `401`. Ang `/health` lang ang walang key.
